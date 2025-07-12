@@ -22,18 +22,18 @@ Features :-
 Getting Started :-
 
 To run the StackIt app locally, follow these steps:
-- Clone the website
+- Clone the website -
   
    -> git clone https://github.com/Sachin702416/Stack-It.git
-- Navigate to project Directory
+- Navigate to project Directory -
   
    -> cd Stack-it
    -> cd stackit-client
-- Install dependencies
+- Install dependencies -
 
    -> npm install
    ( If any error occurs : run -> npm install --legacy-peer-deps )
-- Run The App
+- Run The App -
   
    -> npm start
 
