@@ -29,7 +29,12 @@ const QuestionDetail = () => {
             const docRef = doc(db, 'questions', id);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                setQuestion({ id: docSnap.id, ...docSnap.data() });
+                setQuestion({
+  id: docSnap.id,
+  ...docSnap.data(),
+  tags: Array.isArray(docSnap.data().tags) ? docSnap.data().tags : [],
+});
+
             }
         };
         fetchQuestion();
@@ -50,19 +55,20 @@ const QuestionDetail = () => {
         if (!answerText) return;
 
         await addDoc(collection(db, 'questions', id, 'answers'), {
-  text: answerText,
-  createdAt: new Date(),
-  userId: currentUser.uid,
-  username: currentUser.email,
-  upvotes: 0,
-  downvotes: 0,
-  isAccepted: false
-});
+            text: answerText,
+            createdAt: new Date(),
+            userId: currentUser.uid,
+            username: currentUser.email,
+            upvotes: 0,
+            downvotes: 0,
+            isAccepted: false
+        });
 
-// 🔼 Increment answer count
-await updateDoc(doc(db, 'questions', id), {
-  answerCount: increment(1)
-})};
+        // 🔼 Increment answer count
+        await updateDoc(doc(db, 'questions', id), {
+            answerCount: increment(1)
+        })
+    };
 
 
     // 🔹 Mark answer as accepted
@@ -91,11 +97,16 @@ await updateDoc(doc(db, 'questions', id), {
                     <div dangerouslySetInnerHTML={{ __html: question.description }} className="mb-4 text-gray-800" />
 
                     <div className="flex flex-wrap gap-2 mb-6">
-                        {question.tags?.map(tag => (
-                            <span key={tag} className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-600">
-                                #{tag}
-                            </span>
-                        ))}
+                        {Array.isArray(question.tags) ? (
+                            question.tags.map(tag => (
+                                <span key={tag} className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-600">
+                                    #{tag}
+                                </span>
+                            ))
+                        ) : (
+                            <p className="text-sm text-gray-400">No tags</p>
+                        )}
+
                     </div>
 
                     <hr className="my-6" />

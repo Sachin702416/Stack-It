@@ -10,15 +10,15 @@ const AskQuestion = () => {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState('');
-  const { user } = useAuth(); // 🟡 Make sure you're using `user`, not `currentUser`
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   // 🔐 Redirect if not logged in
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
+  if (!currentUser) {
+    navigate('/login');
+  }
+}, [currentUser, navigate]);
 
   const handleSubmit = async () => {
     if (!title || !desc || !tags) return alert('All fields are required.');
@@ -27,8 +27,8 @@ const AskQuestion = () => {
   title,
   description: desc,
   tags: tags.split(',').map(tag => tag.trim()),
-  userId: user.uid,
-  username: user.email,
+  userId: currentUser.uid,
+username: currentUser.email,
   createdAt: Timestamp.now(),
   answerCount: 0    // ✅ Added
 });
