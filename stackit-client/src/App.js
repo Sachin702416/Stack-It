@@ -12,15 +12,22 @@ import Navbar from './components/Navbar';
 function App() {
   return (
     <AuthProvider>
-      <Navbar/>
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/ask" element={<AskQuestion />} />
-      <Route path="/question/:id" element={<QuestionDetail />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Register />} />
-      <Route path="/tag/:tag" element={<TagPage />} />
-    </Routes>
+      {/* Navbar */}
+      <div className="w-full fixed top-0 z-50">
+        <Navbar />
+      </div>
+
+      {/* Main Content */}
+      <div className="pt-20 max-w-9xl mx-auto px-4">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/ask" element={<AskQuestion />} />
+          <Route path="/question/:id" element={<QuestionDetail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Register />} />
+          <Route path="/tag/:tag" element={<TagPage />} />
+        </Routes>
+      </div>
     </AuthProvider>
   );
 }
