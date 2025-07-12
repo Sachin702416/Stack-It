@@ -26,6 +26,7 @@ Features :-
 
 
 Getting Started :-
+
 To run the StackIt app locally, follow these steps:
 - Clone the website
    -> git clone https://github.com/Sachin702416/Stack-It.git
