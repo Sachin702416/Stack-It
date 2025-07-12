@@ -2,11 +2,13 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
+    const { googleSignIn } = useAuth();
 
     const handleLogin = async e => {
         e.preventDefault();
@@ -36,6 +38,12 @@ const Login = () => {
                     onChange={e => setPassword(e.target.value)}
                     className="border p-2 w-full rounded"
                 />
+                <button
+                    onClick={googleSignIn}
+                    className="bg-red-600 text-white px-4 py-2 rounded mr-5"
+                >
+                    Sign in with Google
+                </button>
                 <button className="bg-indigo-600 text-white px-4 py-2 rounded">
                     Login
                 </button>
@@ -45,6 +53,13 @@ const Login = () => {
                         Sign up here
                     </Link>
                 </p>
+                <p className="text-sm mt-2">
+                    Forgot your password?{' '}
+                    <a href="/reset-password" className="text-blue-600 hover:underline">
+                        Reset here
+                    </a>
+                </p>
+
 
             </form>
         </div>

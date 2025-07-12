@@ -10,37 +10,38 @@ import {
     orderBy,
     updateDoc,
     increment,
+    deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
+import RichTextEditor from '../components/RichTextEditor';
 
 const QuestionDetail = () => {
-    const { id } = useParams(); // Question ID from URL
+    const { id } = useParams();
     const [question, setQuestion] = useState(null);
     const [answerText, setAnswerText] = useState('');
     const [answers, setAnswers] = useState([]);
     const { currentUser } = useAuth();
+    const [editingAnswerId, setEditingAnswerId] = useState(null);
+    const [editedText, setEditedText] = useState('');
 
-    // 🔹 Fetch question details
     useEffect(() => {
         const fetchQuestion = async () => {
             const docRef = doc(db, 'questions', id);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 setQuestion({
-  id: docSnap.id,
-  ...docSnap.data(),
-  tags: Array.isArray(docSnap.data().tags) ? docSnap.data().tags : [],
-});
-
+                    id: docSnap.id,
+                    ...docSnap.data(),
+                    tags: Array.isArray(docSnap.data().tags) ? docSnap.data().tags : [],
+                });
             }
         };
         fetchQuestion();
     }, [id]);
 
-    // 🔹 Real-time listener for answers
     useEffect(() => {
         const q = query(collection(db, 'questions', id, 'answers'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -49,44 +50,102 @@ const QuestionDetail = () => {
         return () => unsubscribe();
     }, [id]);
 
-    // 🔹 Submit new answer
     const handleAnswerSubmit = async () => {
-        if (!currentUser) return alert("Login required to answer.");
-        if (!answerText) return;
+        if (!currentUser) {
+            toast.error("Login required to answer.");
+            return;
+        }
+        if (!answerText) {
+            toast.error("Answer cannot be empty.");
+            return;
+        }
 
-        await addDoc(collection(db, 'questions', id, 'answers'), {
-            text: answerText,
-            createdAt: new Date(),
-            userId: currentUser.uid,
-            username: currentUser.email,
-            upvotes: 0,
-            downvotes: 0,
-            isAccepted: false
-        });
+        try {
+            await addDoc(collection(db, 'questions', id, 'answers'), {
+                text: answerText,
+                createdAt: new Date(),
+                userId: currentUser.uid,
+                username: currentUser.email,
+                upvotes: 0,
+                downvotes: 0,
+                isAccepted: false
+            });
 
-        // 🔼 Increment answer count
-        await updateDoc(doc(db, 'questions', id), {
-            answerCount: increment(1)
-        })
+            await updateDoc(doc(db, 'questions', id), {
+                answerCount: increment(1)
+            });
+
+            toast.success("Answer submitted successfully!");
+            setAnswerText('');
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to submit answer. Try again.");
+        }
     };
 
-
-    // 🔹 Mark answer as accepted
     const handleAccept = async (answerId) => {
-        await updateDoc(doc(db, 'questions', id, 'answers', answerId), {
-            isAccepted: true
-        });
-        await updateDoc(doc(db, 'questions', id), {
-            isSolved: true
-        });
+        try {
+            await updateDoc(doc(db, 'questions', id, 'answers', answerId), {
+                isAccepted: true
+            });
+            await updateDoc(doc(db, 'questions', id), {
+                isSolved: true
+            });
+            toast.success("Answer marked as accepted!");
+        } catch (err) {
+            toast.error("Error marking as accepted.");
+            console.error(err);
+        }
     };
 
-    // 🔹 Upvote or Downvote
     const handleVote = async (answerId, type) => {
-        const answerRef = doc(db, 'questions', id, 'answers', answerId);
-        await updateDoc(answerRef, {
-            [type]: increment(1)
-        });
+        try {
+            const answerRef = doc(db, 'questions', id, 'answers', answerId);
+            await updateDoc(answerRef, {
+                [type]: increment(1)
+            });
+            toast.success(type === 'upvotes' ? "Upvoted!" : "Downvoted!");
+        } catch (error) {
+            toast.error("Failed to vote.");
+        }
+    };
+
+    const handleUpdateAnswer = async (answerId) => {
+        if (!editedText.trim()) {
+            toast.error("Answer cannot be empty.");
+            return;
+        }
+
+        try {
+            const answerRef = doc(db, 'questions', id, 'answers', answerId);
+            await updateDoc(answerRef, {
+                text: editedText
+            });
+            toast.success("Answer updated!");
+            setEditingAnswerId(null);
+            setEditedText('');
+        } catch (err) {
+            toast.error("Update failed.");
+            console.error(err);
+        }
+    };
+
+    const handleDeleteAnswer = async (answerId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this answer?");
+        if (!confirmDelete) return;
+
+        try {
+            await deleteDoc(doc(db, 'questions', id, 'answers', answerId));
+
+            await updateDoc(doc(db, 'questions', id), {
+                answerCount: increment(-1)
+            });
+
+            toast.success("Answer deleted!");
+        } catch (err) {
+            toast.error("Delete failed.");
+            console.error(err);
+        }
     };
 
     return (
@@ -96,17 +155,18 @@ const QuestionDetail = () => {
                     <h1 className="text-2xl font-bold text-indigo-600 mb-2">{question.title}</h1>
                     <div dangerouslySetInnerHTML={{ __html: question.description }} className="mb-4 text-gray-800" />
 
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {Array.isArray(question.tags) ? (
-                            question.tags.map(tag => (
-                                <span key={tag} className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-600">
-                                    #{tag}
-                                </span>
-                            ))
-                        ) : (
-                            <p className="text-sm text-gray-400">No tags</p>
-                        )}
-
+                    <div className="mb-3">
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            {Array.isArray(question.tags) ? (
+                                question.tags.map(tag => (
+                                    <span key={tag} className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-600">
+                                        #{tag}
+                                    </span>
+                                ))
+                            ) : (
+                                <p className="text-sm text-gray-400">No tags</p>
+                            )}
+                        </div>
                     </div>
 
                     <hr className="my-6" />
@@ -114,39 +174,86 @@ const QuestionDetail = () => {
                     <h2 className="text-xl font-semibold mb-4">Answers ({answers.length})</h2>
                     {answers.map(ans => (
                         <div key={ans.id} className="border-b py-3">
-                            <div dangerouslySetInnerHTML={{ __html: ans.text }} className="text-gray-800 mb-2" />
-                            <p className="text-sm text-gray-500">– {ans.username}</p>
+                            {editingAnswerId === ans.id ? (
+                                <>
+                                    <RichTextEditor value={editedText} onChange={setEditedText} />
+                                    <div className="flex gap-2 mt-2">
+                                        <button
+                                            onClick={() => handleUpdateAnswer(ans.id)}
+                                            className="bg-green-500 text-white px-3 py-1 rounded text-sm"
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setEditingAnswerId(null);
+                                                setEditedText('');
+                                            }}
+                                            className="bg-gray-300 text-black px-3 py-1 rounded text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div dangerouslySetInnerHTML={{ __html: ans.text }} className="text-gray-800 mb-2" />
+                                    <p className="text-sm text-gray-500">– {ans.username}</p>
+                                    {ans.createdAt && (
+                                        <p className="text-xs text-gray-400">
+                                            Answered {formatDistanceToNow(ans.createdAt.toDate())} ago
+                                        </p>
+                                    )}
 
-                            {/* Voting buttons */}
-                            <div className="flex gap-4 mt-2 text-sm items-center">
-                                <button
-                                    onClick={() => handleVote(ans.id, 'upvotes')}
-                                    className="text-green-600 hover:underline"
-                                >
-                                    👍 {ans.upvotes}
-                                </button>
+                                    <div className="flex gap-4 mt-2 text-sm items-center">
+                                        <button
+                                            onClick={() => handleVote(ans.id, 'upvotes')}
+                                            className="text-green-600 hover:underline"
+                                        >
+                                            👍 {ans.upvotes}
+                                        </button>
 
-                                <button
-                                    onClick={() => handleVote(ans.id, 'downvotes')}
-                                    className="text-red-500 hover:underline"
-                                >
-                                    👎 {ans.downvotes}
-                                </button>
-                            </div>
+                                        <button
+                                            onClick={() => handleVote(ans.id, 'downvotes')}
+                                            className="text-red-500 hover:underline"
+                                        >
+                                            👎 {ans.downvotes}
+                                        </button>
+                                    </div>
 
-                            {/* Accepted Answer Badge */}
-                            {ans.isAccepted && (
-                                <p className="text-green-600 font-semibold text-sm mt-1">✔ Accepted Answer</p>
-                            )}
+                                    {ans.isAccepted && (
+                                        <p className="text-green-600 font-semibold text-sm mt-1">✔ Accepted Answer</p>
+                                    )}
 
-                            {/* Accept Answer Button */}
-                            {currentUser?.uid === question.userId && !ans.isAccepted && (
-                                <button
-                                    onClick={() => handleAccept(ans.id)}
-                                    className="text-green-500 text-sm hover:underline mt-1"
-                                >
-                                    Mark as Accepted
-                                </button>
+                                    {currentUser?.uid === question.userId && !ans.isAccepted && (
+                                        <button
+                                            onClick={() => handleAccept(ans.id)}
+                                            className="text-green-500 text-sm hover:underline mt-1"
+                                        >
+                                            Mark as Accepted
+                                        </button>
+                                    )}
+
+                                    {currentUser?.uid === ans.userId && (
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingAnswerId(ans.id);
+                                                    setEditedText(ans.text);
+                                                }}
+                                                className="text-blue-500 text-sm hover:underline"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteAnswer(ans.id)}
+                                                className="text-red-500 text-sm hover:underline"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     ))}
@@ -156,21 +263,10 @@ const QuestionDetail = () => {
                     {currentUser ? (
                         <>
                             <h2 className="text-lg font-semibold mb-2">Your Answer</h2>
-                            <ReactQuill
+                            <RichTextEditor
                                 value={answerText}
                                 onChange={setAnswerText}
-                                modules={{
-                                    toolbar: [
-                                        ['bold', 'italic', 'strike'],
-                                        [{ list: 'ordered' }, { list: 'bullet' }],
-                                        ['link', 'image'],
-                                        [{ align: [] }],
-                                        ['emoji']
-                                    ]
-                                }}
-                                formats={[
-                                    'bold', 'italic', 'strike', 'list', 'bullet', 'link', 'image', 'align', 'emoji'
-                                ]}
+                                placeholder="Write your answer here..."
                             />
                             <button
                                 onClick={handleAnswerSubmit}
