@@ -1,17 +1,13 @@
 # Stack-It
 Odoo Hackathon Project
 
-Team Member 1 - Naman Patel 
-Team Member 1 Email - namanp2166@gmail.com
+Team Member 1 - Naman Patel ,  Email - namanp2166@gmail.com
 
-Team Member 2 - Anushka Patidar
-Team Member 2 Email - anushkapatidar2004@gmail.com
+Team Member 2 - Anushka Patidar ,  Email - anushkapatidar2004@gmail.com
 
-Team Member 3 - Damita Pathak
-Team Member 3 Email - navneetpathak75@gmail.com
+Team Member 3 - Damita Pathak ,  Email - navneetpathak75@gmail.com
 
-Team Leader - Sachin Rajawat
-Team Leader Email - scirjwt@gmail.com
+Team Leader - Sachin Rajawat ,  Email - scirjwt@gmail.com
 
 
 Features :-
