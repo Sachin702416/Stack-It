@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,73 +10,65 @@ const AskQuestion = () => {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState('');
-  const [editorLoaded, setEditorLoaded] = useState(false);
-  const { user } = useAuth();
+  const { user } = useAuth(); // 🟡 Make sure you're using `user`, not `currentUser`
   const navigate = useNavigate();
 
+  // 🔐 Redirect if not logged in
   useEffect(() => {
-    // Delay loading editor to avoid findDOMNode error in React 18
-    setEditorLoaded(true);
-  }, []);
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async () => {
-    if (!title || !desc || !tags) {
-      alert("Please fill all fields.");
-      return;
-    }
+    if (!title || !desc || !tags) return alert('All fields are required.');
 
-    try {
-      await addDoc(collection(db, 'questions'), {
-        title,
-        description: desc,
-        tags: tags.split(',').map(tag => tag.trim()),
-        userId: user.uid,
-        username: user.email,
-        createdAt: serverTimestamp()
-      });
+    await addDoc(collection(db, 'questions'), {
+  title,
+  description: desc,
+  tags: tags.split(',').map(tag => tag.trim()),
+  userId: user.uid,
+  username: user.email,
+  createdAt: Timestamp.now(),
+  answerCount: 0    // ✅ Added
+});
 
-      // Reset form & redirect
-      setTitle('');
-      setDesc('');
-      setTags('');
-      navigate('/');
-    } catch (err) {
-      console.error("Error submitting question:", err);
-    }
+
+    // Clear form and redirect
+    setTitle('');
+    setDesc('');
+    setTags('');
+    navigate('/');
   };
 
-  if (!user) return <p className="p-6 text-center">Please log in to ask a question.</p>;
-
   return (
-    <div className="container mx-auto max-w-3xl p-6 space-y-4">
-      <h1 className="text-2xl font-bold text-indigo-700">Ask a New Question</h1>
+    <div className="max-w-3xl mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Ask a New Question</h2>
 
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Enter a short title"
-        className="w-full border p-2 rounded"
+        placeholder="Enter a descriptive title"
+        className="w-full mb-3 p-2 border rounded"
       />
 
-      {editorLoaded && (
-        <ReactQuill
-          value={desc}
-          onChange={setDesc}
-          className="bg-white"
-          theme="snow"
-        />
-      )}
+      <ReactQuill
+        value={desc}
+        onChange={setDesc}
+        className="mb-3"
+        placeholder="Describe your question in detail"
+      />
 
       <input
         value={tags}
         onChange={(e) => setTags(e.target.value)}
-        placeholder="Tags (comma separated, e.g., react, firebase)"
-        className="w-full border p-2 rounded"
+        placeholder="Enter comma-separated tags"
+        className="w-full mb-3 p-2 border rounded"
       />
 
       <button
         onClick={handleSubmit}
-        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+        className="bg-indigo-600 text-white px-4 py-2 rounded"
       >
         Submit Question
       </button>

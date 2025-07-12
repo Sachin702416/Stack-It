@@ -1,108 +1,182 @@
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, Timestamp, updateDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import {
+    doc,
+    getDoc,
+    collection,
+    addDoc,
+    onSnapshot,
+    query,
+    orderBy,
+    updateDoc,
+    increment,
+} from 'firebase/firestore';
 import { db } from '../firebase';
-import ReactQuill from 'react-quill';
 import { useAuth } from '../context/AuthContext';
-import { setDoc } from "firebase/firestore";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const QuestionDetail = () => {
-    const { id } = useParams();
+    const { id } = useParams(); // Question ID from URL
     const [question, setQuestion] = useState(null);
+    const [answerText, setAnswerText] = useState('');
     const [answers, setAnswers] = useState([]);
-    const [answer, setAnswer] = useState('');
     const { currentUser } = useAuth();
 
+    // 🔹 Fetch question details
     useEffect(() => {
         const fetchQuestion = async () => {
             const docRef = doc(db, 'questions', id);
             const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) setQuestion({ id: docSnap.id, ...docSnap.data() });
+            if (docSnap.exists()) {
+                setQuestion({ id: docSnap.id, ...docSnap.data() });
+            }
         };
         fetchQuestion();
     }, [id]);
 
+    // 🔹 Real-time listener for answers
     useEffect(() => {
-        const q = query(collection(db, 'questions', id, 'answers'), orderBy('createdAt', 'asc'));
-        const unsub = onSnapshot(q, (snap) => {
-            setAnswers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const q = query(collection(db, 'questions', id, 'answers'), orderBy('createdAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setAnswers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-        return unsub;
+        return () => unsubscribe();
     }, [id]);
 
-const handleSubmitAnswer = async () => {
-  const answerRef = await addDoc(collection(db, "questions", id, "answers"), {
-    content: answer,
-    userId: currentUser.uid,
-    username: currentUser.email,
-    upvotes: [],
-    accepted: false,
-    createdAt: Timestamp.now(),
-  });
+    // 🔹 Submit new answer
+    const handleAnswerSubmit = async () => {
+        if (!currentUser) return alert("Login required to answer.");
+        if (!answerText) return;
 
-  setAnswer("");
+        await addDoc(collection(db, 'questions', id, 'answers'), {
+  text: answerText,
+  createdAt: new Date(),
+  userId: currentUser.uid,
+  username: currentUser.email,
+  upvotes: 0,
+  downvotes: 0,
+  isAccepted: false
+});
 
-  if (question.userId !== currentUser.uid) {
-    const notifRef = doc(collection(db, "users", question.userId, "notifications"));
-    await setDoc(notifRef, {
-      message: `${currentUser.email} answered your question`,
-      type: "answer",
-      read: false,
-      createdAt: Timestamp.now(),
-    });
-  }
-};
+// 🔼 Increment answer count
+await updateDoc(doc(db, 'questions', id), {
+  answerCount: increment(1)
+})};
 
 
-    return question ? (
-        <div>
-            <h2>{question.title}</h2>
-            <div dangerouslySetInnerHTML={{ __html: question.description }} />
+    // 🔹 Mark answer as accepted
+    const handleAccept = async (answerId) => {
+        await updateDoc(doc(db, 'questions', id, 'answers', answerId), {
+            isAccepted: true
+        });
+        await updateDoc(doc(db, 'questions', id), {
+            isSolved: true
+        });
+    };
 
-            <h3>Answers</h3>
-            {answers.map((ans) => (
-                <div key={ans.id} style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
-                    <div dangerouslySetInnerHTML={{ __html: ans.content }} />
-                    <p>Upvotes: {ans.upvotes.length}</p>
-                    {currentUser && !ans.upvotes.includes(currentUser.uid) && (
-                        <button
-                            onClick={async () => {
-                                const ref = doc(db, 'questions', id, 'answers', ans.id);
-                                await updateDoc(ref, {
-                                    upvotes: [...ans.upvotes, currentUser.uid],
-                                });
-                            }}
-                        >
-                            Upvote
-                        </button>
-                    )}
-                    {currentUser?.uid === question.userId && !ans.accepted && (
-                        <button
-                            onClick={async () => {
-                                const ref = doc(db, 'questions', id, 'answers', ans.id);
-                                await updateDoc(ref, {
-                                    accepted: true,
-                                });
-                            }}
-                            style={{ marginLeft: '10px', color: 'green' }}
-                        >
-                            Accept Answer
-                        </button>
-                    )}
-                    {ans.accepted && <span style={{ marginLeft: '10px', color: 'green' }}>✔ Accepted Answer</span>}
-                </div>
-            ))}
+    // 🔹 Upvote or Downvote
+    const handleVote = async (answerId, type) => {
+        const answerRef = doc(db, 'questions', id, 'answers', answerId);
+        await updateDoc(answerRef, {
+            [type]: increment(1)
+        });
+    };
 
-
-            {currentUser && (
+    return (
+        <div className="px-4 sm:px-8 md:px-16 py-6">
+            {question ? (
                 <>
-                    <h4>Submit Your Answer:</h4>
-                    <ReactQuill value={answer} onChange={setAnswer} />
-                    <button onClick={handleSubmitAnswer}>Submit Answer</button>
+                    <h1 className="text-2xl font-bold text-indigo-600 mb-2">{question.title}</h1>
+                    <div dangerouslySetInnerHTML={{ __html: question.description }} className="mb-4 text-gray-800" />
+
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {question.tags?.map(tag => (
+                            <span key={tag} className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-600">
+                                #{tag}
+                            </span>
+                        ))}
+                    </div>
+
+                    <hr className="my-6" />
+
+                    <h2 className="text-xl font-semibold mb-4">Answers ({answers.length})</h2>
+                    {answers.map(ans => (
+                        <div key={ans.id} className="border-b py-3">
+                            <div dangerouslySetInnerHTML={{ __html: ans.text }} className="text-gray-800 mb-2" />
+                            <p className="text-sm text-gray-500">– {ans.username}</p>
+
+                            {/* Voting buttons */}
+                            <div className="flex gap-4 mt-2 text-sm items-center">
+                                <button
+                                    onClick={() => handleVote(ans.id, 'upvotes')}
+                                    className="text-green-600 hover:underline"
+                                >
+                                    👍 {ans.upvotes}
+                                </button>
+
+                                <button
+                                    onClick={() => handleVote(ans.id, 'downvotes')}
+                                    className="text-red-500 hover:underline"
+                                >
+                                    👎 {ans.downvotes}
+                                </button>
+                            </div>
+
+                            {/* Accepted Answer Badge */}
+                            {ans.isAccepted && (
+                                <p className="text-green-600 font-semibold text-sm mt-1">✔ Accepted Answer</p>
+                            )}
+
+                            {/* Accept Answer Button */}
+                            {currentUser?.uid === question.userId && !ans.isAccepted && (
+                                <button
+                                    onClick={() => handleAccept(ans.id)}
+                                    className="text-green-500 text-sm hover:underline mt-1"
+                                >
+                                    Mark as Accepted
+                                </button>
+                            )}
+                        </div>
+                    ))}
+
+                    <hr className="my-6" />
+
+                    {currentUser ? (
+                        <>
+                            <h2 className="text-lg font-semibold mb-2">Your Answer</h2>
+                            <ReactQuill
+                                value={answerText}
+                                onChange={setAnswerText}
+                                modules={{
+                                    toolbar: [
+                                        ['bold', 'italic', 'strike'],
+                                        [{ list: 'ordered' }, { list: 'bullet' }],
+                                        ['link', 'image'],
+                                        [{ align: [] }],
+                                        ['emoji']
+                                    ]
+                                }}
+                                formats={[
+                                    'bold', 'italic', 'strike', 'list', 'bullet', 'link', 'image', 'align', 'emoji'
+                                ]}
+                            />
+                            <button
+                                onClick={handleAnswerSubmit}
+                                className="mt-3 bg-indigo-500 text-white px-4 py-2 rounded"
+                            >
+                                Submit Answer
+                            </button>
+                        </>
+                    ) : (
+                        <p className="text-sm text-gray-600">Login to post an answer.</p>
+                    )}
                 </>
+            ) : (
+                <p>Loading question...</p>
             )}
         </div>
-    ) : <div>Loading...</div>;
+    );
 };
 
 export default QuestionDetail;
