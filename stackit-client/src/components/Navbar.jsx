@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaBell } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 
 const Navbar = () => {
   const { currentUser, logout } = useAuth();
@@ -9,13 +10,14 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
+  try {
+    await logout();
+    toast.success("Logged out successfully.");
+    navigate('/login');
+  } catch (error) {
+    toast.error("Logout failed.");
+  }
+};
 
   return (
     <nav className="bg-blue-600 text-white p-4 shadow-md relative z-50">

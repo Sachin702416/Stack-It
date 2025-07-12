@@ -8,6 +8,9 @@ import './index.css';
 import TagPage from '../src/pages/TagPage';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import { Toaster } from 'react-hot-toast';
+import ResetPassword from '../src/components/ResetPassword.jsx'
+
 
 function App() {
   return (
@@ -26,8 +29,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Register />} />
           <Route path="/tag/:tag" element={<TagPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
+      <Toaster position="top-right" reverseOrder={false} />
     </AuthProvider>
   );
 }
