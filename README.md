@@ -2,13 +2,13 @@
 Odoo Hackathon Project
 
 Team Member 1 - Naman Patel 
-Team Member 1 Email -  
+Team Member 1 Email - namanp2166@gmail.com
 
 Team Member 2 - Anushka Patidar
-Team Member 2 Email - 
+Team Member 2 Email - anushkapatidar2004@gmail.com
 
 Team Member 3 - Damita Pathak
-Team Member 3 Email - 
+Team Member 3 Email - navneetpathak75@gmail.com
 
 Team Leader - Sachin Rajawat
 Team Leader Email - scirjwt@gmail.com
@@ -28,7 +28,7 @@ Features :-
 Getting Started :-
 To run the StackIt app locally, follow these steps:
 - Clone the website
-   -> git clone <-URL->
+   -> git clone https://github.com/Sachin702416/Stack-It.git
 - Navigate to project Directory
    -> cd Stack-it
    -> cd stackit-client
